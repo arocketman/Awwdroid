@@ -92,9 +92,10 @@ public class SingleImageFragment extends Fragment {
     public void onStart() {
         super.onStart();
         if(entry.getURL().contains("gif"))
-            Glide.with(getContext()).load(entry.getURL()).asGif().into(imageView);
-        else
-            Glide.with(getContext()).load(entry.getURL()).into(imageView);
+            Glide.with(getContext()).load(entry.getURL()).asGif().crossFade().placeholder(R.drawable.load).into(imageView);
+        else {
+            Glide.with(getContext()).load(entry.getURL()).crossFade().placeholder(R.drawable.load).centerCrop().into(imageView);
+        }
         imageTitleTextView.setText(entry.getTitle());
     }
 

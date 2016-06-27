@@ -19,15 +19,34 @@ public class RedditFetcher {
     JSONArray JSONEntries;
     Integer currentEntry = 0;
 
-    /**
-     * Builds a RedditFetcher object.
-     * @param url the URL in string representation from which you want to parse content.
-     */
+    String after;
+    int count = 0;
+    String baseUrl;
+
     public RedditFetcher(String url){
+        this.baseUrl = url;
+    }
+
+
+    /**
+     * Handles the format for the URL and calls the fetchJSON method.
+     */
+    public void fetchNext(){
+        String url = "";
+        if(count == 0)
+            url = this.baseUrl;
+        else
+            url = this.baseUrl + "?count=" + count + "&after=" + after;
+        fetchJSON(url);
+    }
+
+    public void fetchJSON(String url){
         try {
-            String sJson = URLtoString(url);
+            String sJson = URLFetch(url);
             this.JSONEntries = StringToJson(sJson).getJSONObject("data").getJSONArray("children");
-            System.out.println("hi");
+            //Setting up the variables for the next URL.
+            count+=25;
+            after = this.JSONEntries.getJSONObject(this.JSONEntries.length()-1).getJSONObject("data").getString("name");
         } catch (IOException e) {
             e.printStackTrace();
         } catch (JSONException e) {
@@ -57,11 +76,12 @@ public class RedditFetcher {
      * Gets all the entries converting the json format in ImageEntry objects.
      * @return
      */
-    public ArrayList<ImageEntry> getAllEntries(){
+    public ArrayList<ImageEntry> getEntries(){
         ArrayList<ImageEntry> entries = new ArrayList<>();
         while(currentEntry < JSONEntries.length()){
             entries.add(getNextEntry());
         }
+        currentEntry = 0;
         return entries;
     }
 
@@ -83,7 +103,7 @@ public class RedditFetcher {
      * @return a string with the content of the given page.
      * @throws IOException
      */
-    private String URLtoString(String URLString) throws IOException {
+    private String URLFetch(String URLString) throws IOException {
         URL url = new URL(URLString);
         URLConnection urlconnection = url.openConnection();
         //Just a random user agent.
