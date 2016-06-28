@@ -35,12 +35,17 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
         setContentView(R.layout.activity_main);
         mTabLayout = (TabLayout) findViewById(R.id.sliding_tabs);
         mTabLayout.setOnTabSelectedListener(new tabListener());
+        //TODO: Save the fetcher string (or the fetcher itself) to the savedInstanceState.
         fetcher = new RedditFetcher("https://www.reddit.com/r/aww/.json?limit=100");
-        imageEntries = new ArrayList<>();
-        new FetchJSONTask().execute("");
         if (savedInstanceState != null) {
             // Restore value of members from saved state
             mCurrentItem = savedInstanceState.getInt("current_item");
+            imageEntries = savedInstanceState.getParcelableArrayList("entries");
+            createPager();
+        }
+        else{
+            imageEntries = new ArrayList<>();
+            new FetchJSONTask().execute("");
         }
     }
 
@@ -49,12 +54,18 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
         super.onSaveInstanceState(outState);
         int currentItem = mPager.getCurrentItem();
         outState.putInt("current_item",currentItem);
+        outState.putParcelableArrayList("entries",imageEntries);
     }
 
     @Override
     public void onFragmentInteraction(Uri uri) {
 
     }
+
+    public int getCurrentIndex(){
+        return mPager.getCurrentItem();
+    }
+
 
     @Override
     public void onBackPressed() {
@@ -120,30 +131,44 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
         @Override
         protected void onPostExecute(ArrayList<ImageEntry> results) {
             super.onPostExecute(results);
+            // Adding the new entries to the already existing ones and removal of null elements.
             imageEntries.addAll(results);
-            //Removing null elements.
             imageEntries.removeAll(Arrays.asList(null,""));
-
-            // Instantiate a ViewPager and a PagerAdapter if not created already.
-            if(mPager == null) {
-                mPager = (ViewPager) findViewById(R.id.pager);
-                mPagerAdapter = new ScreenSlidePagerAdapter(getSupportFragmentManager());
-                mPager.setAdapter(mPagerAdapter);
-                if(mCurrentItem != -1)
-                    mPager.setCurrentItem(mCurrentItem);
-            }
-            else {
-                doNotifyDataSetChangedOnce = true;
-            }
+            createPager();
         }
+    }
+
+    /**
+     * Checks wheter or not the pager is null. If it is, it will create it along with its adapter.
+     * If it is not, it means that it already existed and we've called the execute() method on
+     * FetchJSONTask, so we're just updating the list and we want to notify the data set
+     * changed accordingly.
+     */
+    private void createPager() {
+        if(mPager == null) {
+            mPager = (ViewPager) findViewById(R.id.pager);
+            mPagerAdapter = new ScreenSlidePagerAdapter(getSupportFragmentManager());
+            mPager.setAdapter(mPagerAdapter);
+
+            // Used to restore the correct item of the pager when switching to/from landscape.
+            if(mCurrentItem != -1)
+                mPager.setCurrentItem(mCurrentItem);
+        }
+        doNotifyDataSetChangedOnce = true;
     }
 
     private class tabListener implements TabLayout.OnTabSelectedListener{
 
         @Override
         public void onTabSelected(TabLayout.Tab tab) {
+
+            //We clear the imageEntries and the viewpager when we're switching tab.
+            imageEntries.clear();
+            mPagerAdapter=null;
+            mPager=null;
+
+            //Creating a new fetcher based on the pressed tab.
             int pos = tab.getPosition();
-            Log.d("pos", String.valueOf(pos));
             switch (pos){
                 case 0 :
                     fetcher = new RedditFetcher("https://www.reddit.com/r/aww/.json?limit=100");
@@ -156,9 +181,6 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
                     break;
             }
 
-            imageEntries.clear();
-            mPagerAdapter=null;
-            mPager=null;
             new FetchJSONTask().execute("");
         }
 
