@@ -3,6 +3,7 @@ package github.arocketman.awwdroid;
 import android.media.Image;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.support.design.widget.TabLayout;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
@@ -20,18 +21,34 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
 
     private ViewPager mPager;
     private PagerAdapter mPagerAdapter;
+    private int mCurrentItem = -1;
+    private TabLayout mTabLayout;
 
     private ArrayList<ImageEntry> imageEntries;
 
     RedditFetcher fetcher;
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        fetcher = new RedditFetcher("https://www.reddit.com/r/aww/.json");
+        mTabLayout = (TabLayout) findViewById(R.id.sliding_tabs);
+        mTabLayout.setOnTabSelectedListener(new tabListener());
+        fetcher = new RedditFetcher("https://www.reddit.com/r/aww/.json?limit=100");
         imageEntries = new ArrayList<>();
         new FetchJSONTask().execute("");
+        if (savedInstanceState != null) {
+            // Restore value of members from saved state
+            mCurrentItem = savedInstanceState.getInt("current_item");
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        int currentItem = mPager.getCurrentItem();
+        outState.putInt("current_item",currentItem);
     }
 
     @Override
@@ -71,7 +88,7 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
         @Override
         public Fragment getItem(int position) {
             // Loading new images if we're coming close to the end of the array.
-            if(imageEntries.size() - position < 10 && imageEntries.size() - position > 0)
+            if(imageEntries.size() - position < 20)
                 new FetchJSONTask().execute("");
             ImageEntry entry = getImageEntry(position);
             if(entry==null){
@@ -93,18 +110,17 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
     /**
      * Given a reddit.com json URL this task fetches the JSON.
      */
-    private class FetchJSONTask extends AsyncTask<String, Void , ArrayList<String>> {
+    private class FetchJSONTask extends AsyncTask<String, Void , ArrayList<ImageEntry>> {
 
         @Override
-        protected ArrayList<String> doInBackground(String... strings) {
-            fetcher.fetchNext();
-            return null;
+        protected ArrayList<ImageEntry> doInBackground(String... strings) {
+            return fetcher.fetchNext();
         }
 
         @Override
-        protected void onPostExecute(ArrayList<String> strings) {
-            super.onPostExecute(strings);
-            imageEntries.addAll(fetcher.getEntries());
+        protected void onPostExecute(ArrayList<ImageEntry> results) {
+            super.onPostExecute(results);
+            imageEntries.addAll(results);
             //Removing null elements.
             imageEntries.removeAll(Arrays.asList(null,""));
 
@@ -113,9 +129,47 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
                 mPager = (ViewPager) findViewById(R.id.pager);
                 mPagerAdapter = new ScreenSlidePagerAdapter(getSupportFragmentManager());
                 mPager.setAdapter(mPagerAdapter);
+                if(mCurrentItem != -1)
+                    mPager.setCurrentItem(mCurrentItem);
             }
-            else
+            else {
                 doNotifyDataSetChangedOnce = true;
+            }
+        }
+    }
+
+    private class tabListener implements TabLayout.OnTabSelectedListener{
+
+        @Override
+        public void onTabSelected(TabLayout.Tab tab) {
+            int pos = tab.getPosition();
+            Log.d("pos", String.valueOf(pos));
+            switch (pos){
+                case 0 :
+                    fetcher = new RedditFetcher("https://www.reddit.com/r/aww/.json?limit=100");
+                    break;
+                case 1:
+                    fetcher = new RedditFetcher("https://www.reddit.com/r/aww/top/.json?limit=100");
+                    break;
+                case 2:
+                    fetcher = new RedditFetcher("https://www.reddit.com/r/aww/new/.json?limit=100");
+                    break;
+            }
+
+            imageEntries.clear();
+            mPagerAdapter=null;
+            mPager=null;
+            new FetchJSONTask().execute("");
+        }
+
+        @Override
+        public void onTabUnselected(TabLayout.Tab tab) {
+
+        }
+
+        @Override
+        public void onTabReselected(TabLayout.Tab tab) {
+
         }
     }
 

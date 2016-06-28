@@ -31,21 +31,24 @@ public class RedditFetcher {
     /**
      * Handles the format for the URL and calls the fetchJSON method.
      */
-    public void fetchNext(){
+    public ArrayList<ImageEntry> fetchNext(){
         String url = "";
         if(count == 0)
             url = this.baseUrl;
         else
-            url = this.baseUrl + "?count=" + count + "&after=" + after;
+            url = this.baseUrl + "&count=" + count + "&after=" + after;
         fetchJSON(url);
+        return getEntries();
     }
 
     public void fetchJSON(String url){
         try {
             String sJson = URLFetch(url);
             this.JSONEntries = StringToJson(sJson).getJSONObject("data").getJSONArray("children");
+            if(this.JSONEntries == null)
+                return;
             //Setting up the variables for the next URL.
-            count+=25;
+            count+=100;
             after = this.JSONEntries.getJSONObject(this.JSONEntries.length()-1).getJSONObject("data").getString("name");
         } catch (IOException e) {
             e.printStackTrace();

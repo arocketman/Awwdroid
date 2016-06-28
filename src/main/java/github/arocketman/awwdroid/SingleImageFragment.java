@@ -1,21 +1,34 @@
 package github.arocketman.awwdroid;
 
 import android.content.Context;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.View.OnTouchListener;
 import android.view.ViewGroup;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 
 import com.bumptech.glide.Glide;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 
 
@@ -36,6 +49,7 @@ public class SingleImageFragment extends Fragment {
     private int fragmentId;
     private ImageView imageView;
     private TextView imageTitleTextView;
+    private ImageButton mShareButton;
 
     private OnFragmentInteractionListener mListener;
 
@@ -63,6 +77,8 @@ public class SingleImageFragment extends Fragment {
         super.onActivityCreated(savedInstanceState);
         imageView = (ImageView) getView().findViewById(R.id.imageView);
         imageTitleTextView = (TextView)getView().findViewById(R.id.textView);
+        mShareButton = (ImageButton)getView().findViewById(R.id.shareButton);
+        mShareButton.setOnTouchListener(new shareListener());
     }
 
     @Override
@@ -94,7 +110,7 @@ public class SingleImageFragment extends Fragment {
         if(entry.getURL().contains("gif"))
             Glide.with(getContext()).load(entry.getURL()).asGif().crossFade().placeholder(R.drawable.load).into(imageView);
         else {
-            Glide.with(getContext()).load(entry.getURL()).crossFade().placeholder(R.drawable.load).centerCrop().into(imageView);
+            Glide.with(getContext()).load(entry.getURL()).crossFade().placeholder(R.drawable.load).into(imageView);
         }
         imageTitleTextView.setText(entry.getTitle());
     }
@@ -120,6 +136,32 @@ public class SingleImageFragment extends Fragment {
 
     public interface OnFragmentInteractionListener {
         void onFragmentInteraction(Uri uri);
+    }
+
+    private class shareListener implements OnTouchListener{
+
+        @Override
+        public boolean onTouch(View view, MotionEvent motionEvent) {
+            Drawable bitmapDrawable = imageView.getDrawable();
+            Bitmap bitmap = BitmapFactory.decode
+            Bitmap icon = bitmap;
+            Intent share = new Intent(Intent.ACTION_SEND);
+            share.setType("image/jpeg");
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            icon.compress(Bitmap.CompressFormat.JPEG, 100, bytes);
+            File f = new File(Environment.getExternalStorageDirectory() + File.separator + "temporary_file.jpg");
+            try {
+                f.createNewFile();
+                FileOutputStream fo = new FileOutputStream(f);
+                fo.write(bytes.toByteArray());
+                fo.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            share.putExtra(Intent.EXTRA_STREAM, Uri.parse("file:///sdcard/temporary_file.jpg"));
+            startActivity(Intent.createChooser(share, "Share Image"));
+            return true;
+        }
     }
 
 
