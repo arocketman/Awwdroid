@@ -1,6 +1,5 @@
 package github.arocketman.awwdroid;
 
-import android.media.Image;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.support.design.widget.TabLayout;
@@ -11,7 +10,6 @@ import android.support.v4.app.FragmentStatePagerAdapter;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.os.Bundle;
-import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -21,13 +19,12 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
 
     private ViewPager mPager;
     private PagerAdapter mPagerAdapter;
-    private int mCurrentItem = -1;
     private TabLayout mTabLayout;
     private ScreenSlidePagerAdapter mLoading;
 
-    private ArrayList<ImageEntry> imageEntries;
-
-    RedditFetcher fetcher;
+    private ArrayList<ImageEntry> mImageEntries;
+    RedditFetcher mFetcher;
+    private int mCurrentItem = -1;
 
 
     @Override
@@ -36,22 +33,22 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
         setContentView(R.layout.activity_main);
         mTabLayout = (TabLayout) findViewById(R.id.sliding_tabs);
         mTabLayout.setOnTabSelectedListener(new tabListener());
-        imageEntries = new ArrayList<>();
+        mImageEntries = new ArrayList<>();
         mLoading = new ScreenSlidePagerAdapter(getSupportFragmentManager(),true);
         mPager = (ViewPager) findViewById(R.id.pager);
         if (savedInstanceState != null) {
-            mPager.setAdapter(mLoading);
             // Restore value of members from saved state
+            mPager.setAdapter(mLoading);
             int currentTab = savedInstanceState.getInt("current_tab");
             mTabLayout.getTabAt(currentTab).select();
-            fetcher = getFetcherFromSelectedTab(currentTab);
+            mFetcher = getFetcherFromSelectedTab(currentTab);
             mCurrentItem = savedInstanceState.getInt("current_item");
-            imageEntries = savedInstanceState.getParcelableArrayList("entries");
+            mImageEntries = savedInstanceState.getParcelableArrayList("entries");
             createPager();
         }
         else{
-            fetcher = new RedditFetcher("https://www.reddit.com/r/aww/.json?limit=100");
-            imageEntries = new ArrayList<>();
+            mFetcher = new RedditFetcher("https://www.reddit.com/r/aww/.json?limit=100");
+            mImageEntries = new ArrayList<>();
             new FetchJSONTask(true).execute("");
         }
 
@@ -62,7 +59,7 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
         super.onSaveInstanceState(outState);
         int currentItem = mPager.getCurrentItem();
         outState.putInt("current_item",currentItem);
-        outState.putParcelableArrayList("entries",imageEntries);
+        outState.putParcelableArrayList("entries", mImageEntries);
         outState.putInt("current_tab",mTabLayout.getSelectedTabPosition());
     }
 
@@ -89,12 +86,12 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
     }
 
     /**
-     * Returns an ImageEntry object from the imageEntries ArrayList given an ID.
+     * Returns an ImageEntry object from the mImageEntries ArrayList given an ID.
      * @param id
      * @return
      */
     public ImageEntry getImageEntry(int id){
-        return imageEntries.get(id);
+        return mImageEntries.get(id);
     }
 
     boolean doNotifyDataSetChangedOnce = false;
@@ -113,7 +110,7 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
             if(isLoadingFragment)
                 return SingleImageFragment.newInstance(null, 0);
             // Loading new images if we're coming close to the end of the array.
-            if(imageEntries.size() - position < 20)
+            if(mImageEntries.size() - position < 20)
                 new FetchJSONTask(false).execute("");
             ImageEntry entry = getImageEntry(position);
             return SingleImageFragment.newInstance(entry,position);
@@ -125,13 +122,17 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
                 doNotifyDataSetChangedOnce = false;
                 notifyDataSetChanged();
             }
-            return imageEntries.size();
+            return mImageEntries.size();
         }
 
     }
 
     /**
      * Given a reddit.com json URL this task fetches the JSON.
+     * This AsyncTask is launched in two different ways:
+     * 1) Task is launched when we need to fetch new images because the old ones are running short (eager loading)
+     * 2) Task is launched when a tab is switched or the app itself is started. In this case we want to show the loading splash,
+     *    we do this by setting the mPager adapter to mLoading.
      */
     private class FetchJSONTask extends AsyncTask<String, Void , ArrayList<ImageEntry>> {
 
@@ -145,23 +146,25 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
+
+            // We show the loading splash if we need to.
             if(tabSwapped) {
-                imageEntries.add(0,null);
+                mImageEntries.add(0,null);
                 mPager.setAdapter(mLoading);
             }
         }
 
         @Override
         protected ArrayList<ImageEntry> doInBackground(String... strings) {
-            return fetcher.fetchNext();
+            return mFetcher.fetchNext();
         }
 
         @Override
         protected void onPostExecute(ArrayList<ImageEntry> results) {
             super.onPostExecute(results);
             // Adding the new entries to the already existing ones and removal of null elements.
-            imageEntries.addAll(results);
-            imageEntries.removeAll(Arrays.asList(null,""));
+            mImageEntries.addAll(results);
+            mImageEntries.removeAll(Arrays.asList(null,""));
             createPager();
         }
     }
@@ -189,12 +192,12 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
 
         @Override
         public void onTabSelected(TabLayout.Tab tab) {
-            //We clear the imageEntries and the viewpager when we're switching tab.
-            imageEntries.clear();
+            //We clear the mImageEntries when we're switching tab.
+            mImageEntries.clear();
 
-            //Creating a new fetcher based on the pressed tab.
+            //Creating a new mFetcher based on the pressed tab.
             int pos = tab.getPosition();
-            fetcher = getFetcherFromSelectedTab(pos);
+            mFetcher = getFetcherFromSelectedTab(pos);
 
             new FetchJSONTask(true).execute("");
         }
@@ -210,6 +213,12 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
         }
     }
 
+    /**
+     * Returns a RedditFetcher object based on the given tab position. Base Urls are different for
+     * different tabs.
+     * @param pos
+     * @return
+     */
     private RedditFetcher getFetcherFromSelectedTab(int pos) {
         switch (pos){
             case 0 :
