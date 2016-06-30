@@ -99,6 +99,15 @@ public class SingleImageFragment extends Fragment {
     @Override
     public void onStart() {
         super.onStart();
+
+        // When we pass a null entry it means it's the loading screen
+        if(entry == null) {
+            Glide.with(getContext()).load(R.drawable.load).into(imageView);
+            imageTitleTextView.setText("Loading..");
+            return;
+        }
+
+        //Checking whether the image is a gif or a jpg/png ..
         if(entry.getURL().contains("gif")) {
             Glide.with(getContext()).load(entry.getURL()).asGif().crossFade().placeholder(R.drawable.load).into(imageView);
             mShareButton.setActivated(false);

@@ -5,6 +5,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
@@ -14,7 +15,7 @@ import java.util.Scanner;
  * This class has the duty to fetch all the data from Reddit, parse it and give it as usable data to
  * its users.
  */
-public class RedditFetcher {
+public class RedditFetcher implements Serializable {
 
     JSONArray JSONEntries;
     Integer currentEntry = 0;

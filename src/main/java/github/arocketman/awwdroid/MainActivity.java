@@ -23,6 +23,7 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
     private PagerAdapter mPagerAdapter;
     private int mCurrentItem = -1;
     private TabLayout mTabLayout;
+    private ScreenSlidePagerAdapter mLoading;
 
     private ArrayList<ImageEntry> imageEntries;
 
@@ -35,18 +36,22 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
         setContentView(R.layout.activity_main);
         mTabLayout = (TabLayout) findViewById(R.id.sliding_tabs);
         mTabLayout.setOnTabSelectedListener(new tabListener());
-        //TODO: Save the fetcher string (or the fetcher itself) to the savedInstanceState.
-        fetcher = new RedditFetcher("https://www.reddit.com/r/aww/.json?limit=100");
+        imageEntries = new ArrayList<>();
+        mLoading = new ScreenSlidePagerAdapter(getSupportFragmentManager(),true);
+        mPager = (ViewPager) findViewById(R.id.pager);
         if (savedInstanceState != null) {
             // Restore value of members from saved state
+            fetcher = (RedditFetcher) savedInstanceState.getSerializable("fetcher");
             mCurrentItem = savedInstanceState.getInt("current_item");
             imageEntries = savedInstanceState.getParcelableArrayList("entries");
             createPager();
         }
         else{
+            fetcher = new RedditFetcher("https://www.reddit.com/r/aww/.json?limit=100");
             imageEntries = new ArrayList<>();
-            new FetchJSONTask().execute("");
+            new FetchJSONTask(true).execute("");
         }
+
     }
 
     @Override
@@ -55,6 +60,7 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
         int currentItem = mPager.getCurrentItem();
         outState.putInt("current_item",currentItem);
         outState.putParcelableArrayList("entries",imageEntries);
+        outState.putSerializable("fetcher",fetcher);
     }
 
     @Override
@@ -92,19 +98,21 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
 
     private class ScreenSlidePagerAdapter extends FragmentStatePagerAdapter {
 
-        public ScreenSlidePagerAdapter(FragmentManager fm) {
+        boolean isLoadingFragment;
+
+        public ScreenSlidePagerAdapter(FragmentManager fm , boolean isLoadingFragment) {
             super(fm);
+            this.isLoadingFragment = isLoadingFragment;
         }
 
         @Override
         public Fragment getItem(int position) {
+            if(isLoadingFragment)
+                return SingleImageFragment.newInstance(null, 0);
             // Loading new images if we're coming close to the end of the array.
             if(imageEntries.size() - position < 20)
-                new FetchJSONTask().execute("");
+                new FetchJSONTask(false).execute("");
             ImageEntry entry = getImageEntry(position);
-            if(entry==null){
-                return SingleImageFragment.newInstance(entry,position);
-            }
             return SingleImageFragment.newInstance(entry,position);
         }
 
@@ -116,12 +124,29 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
             }
             return imageEntries.size();
         }
+
     }
 
     /**
      * Given a reddit.com json URL this task fetches the JSON.
      */
     private class FetchJSONTask extends AsyncTask<String, Void , ArrayList<ImageEntry>> {
+
+        private boolean tabSwapped;
+
+        public FetchJSONTask(boolean tabSwapped) {
+            super();
+            this.tabSwapped = tabSwapped;
+        }
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            if(tabSwapped) {
+                imageEntries.add(0,null);
+                mPager.setAdapter(mLoading);
+            }
+        }
 
         @Override
         protected ArrayList<ImageEntry> doInBackground(String... strings) {
@@ -145,9 +170,9 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
      * changed accordingly.
      */
     private void createPager() {
-        if(mPager == null) {
+        if(mPager == null || mPager.getAdapter() == mLoading) {
             mPager = (ViewPager) findViewById(R.id.pager);
-            mPagerAdapter = new ScreenSlidePagerAdapter(getSupportFragmentManager());
+            mPagerAdapter = new ScreenSlidePagerAdapter(getSupportFragmentManager(),false);
             mPager.setAdapter(mPagerAdapter);
 
             // Used to restore the correct item of the pager when switching to/from landscape.
@@ -161,11 +186,8 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
 
         @Override
         public void onTabSelected(TabLayout.Tab tab) {
-
             //We clear the imageEntries and the viewpager when we're switching tab.
             imageEntries.clear();
-            mPagerAdapter=null;
-            mPager=null;
 
             //Creating a new fetcher based on the pressed tab.
             int pos = tab.getPosition();
@@ -181,7 +203,7 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
                     break;
             }
 
-            new FetchJSONTask().execute("");
+            new FetchJSONTask(true).execute("");
         }
 
         @Override
