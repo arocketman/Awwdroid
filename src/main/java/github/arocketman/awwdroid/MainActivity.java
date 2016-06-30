@@ -40,8 +40,11 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
         mLoading = new ScreenSlidePagerAdapter(getSupportFragmentManager(),true);
         mPager = (ViewPager) findViewById(R.id.pager);
         if (savedInstanceState != null) {
+            mPager.setAdapter(mLoading);
             // Restore value of members from saved state
-            fetcher = (RedditFetcher) savedInstanceState.getSerializable("fetcher");
+            int currentTab = savedInstanceState.getInt("current_tab");
+            mTabLayout.getTabAt(currentTab).select();
+            fetcher = getFetcherFromSelectedTab(currentTab);
             mCurrentItem = savedInstanceState.getInt("current_item");
             imageEntries = savedInstanceState.getParcelableArrayList("entries");
             createPager();
@@ -60,7 +63,7 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
         int currentItem = mPager.getCurrentItem();
         outState.putInt("current_item",currentItem);
         outState.putParcelableArrayList("entries",imageEntries);
-        outState.putSerializable("fetcher",fetcher);
+        outState.putInt("current_tab",mTabLayout.getSelectedTabPosition());
     }
 
     @Override
@@ -191,17 +194,7 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
 
             //Creating a new fetcher based on the pressed tab.
             int pos = tab.getPosition();
-            switch (pos){
-                case 0 :
-                    fetcher = new RedditFetcher("https://www.reddit.com/r/aww/.json?limit=100");
-                    break;
-                case 1:
-                    fetcher = new RedditFetcher("https://www.reddit.com/r/aww/top/.json?limit=100");
-                    break;
-                case 2:
-                    fetcher = new RedditFetcher("https://www.reddit.com/r/aww/new/.json?limit=100");
-                    break;
-            }
+            fetcher = getFetcherFromSelectedTab(pos);
 
             new FetchJSONTask(true).execute("");
         }
@@ -214,6 +207,17 @@ public class MainActivity extends FragmentActivity implements SingleImageFragmen
         @Override
         public void onTabReselected(TabLayout.Tab tab) {
 
+        }
+    }
+
+    private RedditFetcher getFetcherFromSelectedTab(int pos) {
+        switch (pos){
+            case 0 :
+                return new RedditFetcher("https://www.reddit.com/r/aww/.json?limit=100");
+            case 1:
+                return new RedditFetcher("https://www.reddit.com/r/aww/top/.json?limit=100");
+            default:
+                return new RedditFetcher("https://www.reddit.com/r/aww/.json?limit=100");
         }
     }
 
