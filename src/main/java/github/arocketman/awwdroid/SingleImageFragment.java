@@ -110,7 +110,7 @@ public class SingleImageFragment extends Fragment {
         //Checking whether the image is a gif or a jpg/png ..
         if(entry.getURL().contains("gif")) {
             Glide.with(getContext()).load(entry.getURL()).asGif().crossFade().placeholder(R.drawable.load).into(imageView);
-            mShareButton.setActivated(false);
+            mShareButton.setVisibility(View.GONE);
         }
         else
             Glide.with(getContext()).load(entry.getURL()).asBitmap().placeholder(R.drawable.load).into(new SimpleTarget<Bitmap>() {
